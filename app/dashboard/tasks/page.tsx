@@ -326,7 +326,7 @@ export default function TasksPage() {
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
-      const next = new Set(prev)
+      const next = new Set(Array.from(prev))
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
@@ -353,7 +353,7 @@ export default function TasksPage() {
     if (data) {
       setTasks(prev => [data as any, ...prev])
       if (form.parent_id) {
-        setExpandedIds(prev => new Set([...prev, form.parent_id]))
+        setExpandedIds(prev => { const next = new Set(Array.from(prev)); next.add(form.parent_id); return next })
       }
     }
     setShowModal(false)
