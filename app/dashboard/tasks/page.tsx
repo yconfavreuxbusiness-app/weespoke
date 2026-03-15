@@ -79,7 +79,7 @@ function TaskModal({
             <div className="field">
               <label className="label">Catégorie</label>
               <select className="input" value={form.category}
-                onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
+                onChange={e => setForm(p => ({ ...p, category: e.target.value as any }))}>
                 {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
               </select>
             </div>
