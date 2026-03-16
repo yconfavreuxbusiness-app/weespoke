@@ -213,7 +213,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .modal {
   position: fixed;
   top: 50vh;
-  left: 50vw;
+  left: calc(var(--sidebar-w) / 2 + 50%);
   transform: translate(-50%, -50%);
   background: var(--surface);
   border: 1px solid var(--border);
