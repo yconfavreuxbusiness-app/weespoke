@@ -159,6 +159,50 @@ function EditableSection({ section, isAdmin, onSave }: {
         )
       }
 
+      if (first?.screen && first?.mvp && first?.v1) {
+        // MVP/V1 scope table
+        return (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr>
+                  <th style={{ padding: '10px 14px', background: 'var(--surface-2)', border: '1px solid var(--border)', textAlign: 'left', fontWeight: '700', fontSize: '12px', color: 'var(--text-muted)', width: '16%', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Écran</th>
+                  <th style={{ padding: '10px 14px', background: '#EEF4FF', border: '1px solid var(--border)', textAlign: 'left', fontWeight: '700', fontSize: '12px', color: '#1D6AE5', width: '42%', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🧪 MVP</th>
+                  <th style={{ padding: '10px 14px', background: '#ECFDF5', border: '1px solid var(--border)', textAlign: 'left', fontWeight: '700', fontSize: '12px', color: '#059669', width: '42%', textTransform: 'uppercase', letterSpacing: '0.05em' }}>🚀 V1</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parsed.map((row: any, i: number) => (
+                  <tr key={i} style={{ background: i % 2 === 0 ? 'var(--surface)' : 'var(--surface-2)' }}>
+                    <td style={{ padding: '12px 14px', border: '1px solid var(--border)', fontWeight: '600', fontSize: '13px', verticalAlign: 'top' }}>{row.screen}</td>
+                    <td style={{ padding: '12px 14px', border: '1px solid var(--border)', verticalAlign: 'top' }}>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {row.mvp.map((item: string, j: number) => (
+                          <li key={j} style={{ display: 'flex', gap: '6px', color: item.startsWith('❌') ? '#DC2626' : 'var(--text-2)', fontSize: '12px', lineHeight: 1.4 }}>
+                            {!item.startsWith('❌') && <span style={{ color: '#1D6AE5', flexShrink: 0 }}>·</span>}
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                    <td style={{ padding: '12px 14px', border: '1px solid var(--border)', verticalAlign: 'top' }}>
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        {row.v1.map((item: string, j: number) => (
+                          <li key={j} style={{ display: 'flex', gap: '6px', color: 'var(--text-2)', fontSize: '12px', lineHeight: 1.4 }}>
+                            <span style={{ color: '#059669', flexShrink: 0 }}>·</span>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      }
+
       if (first?.cat && first?.items) {
         // Scope sections
         return (
