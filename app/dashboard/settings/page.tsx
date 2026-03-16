@@ -13,7 +13,7 @@ export default function SettingsPage() {
   // Change password form
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
-  const [confirm, setConfirm] = useState('')
+  const [confirmPwd, setConfirmPwd] = useState('')
   const [showCurrent, setShowCurrent] = useState(false)
   const [showNext, setShowNext] = useState(false)
   const [pwdStatus, setPwdStatus] = useState<'idle' | 'loading' | 'ok' | 'error'>('idle')
@@ -37,7 +37,7 @@ export default function SettingsPage() {
 
   const changePassword = async () => {
     if (!user) return
-    if (next !== confirm) { setPwdError('Les mots de passe ne correspondent pas'); return }
+    if (next !== confirmPwd) { setPwdError('Les mots de passe ne correspondent pas'); return }
     if (next.length < 6) { setPwdError('6 caractères minimum'); return }
 
     setPwdStatus('loading')
@@ -53,14 +53,14 @@ export default function SettingsPage() {
       setPwdStatus('error')
     } else {
       setPwdStatus('ok')
-      setCurrent(''); setNext(''); setConfirm('')
+      setCurrent(''); setNext(''); setConfirmPwd('')
       setTimeout(() => setPwdStatus('idle'), 3000)
     }
   }
 
   const resetPassword = async (targetId: string, targetName: string) => {
     if (!user) return
-    if (!confirm(`Remettre le mot de passe de ${targetName} à zéro ?\nIl devra en définir un nouveau à sa prochaine connexion.`)) return
+    if (!window.confirm(`Remettre le mot de passe de ${targetName} à zéro ?\nIl devra en définir un nouveau à sa prochaine connexion.`)) return
     setResetStatus(p => ({ ...p, [targetId]: 'loading' }))
     await fetch('/api/reset-password', {
       method: 'POST',
@@ -118,8 +118,8 @@ export default function SettingsPage() {
 
             <div className="field">
               <label className="label">Confirmer le nouveau mot de passe</label>
-              <input className="input" type="password" value={confirm}
-                onChange={e => setConfirm(e.target.value)} placeholder="Répétez le nouveau mot de passe"
+              <input className="input" type="password" value={confirmPwd}
+                onChange={e => setConfirmPwd(e.target.value)} placeholder="Répétez le nouveau mot de passe"
                 onKeyDown={e => e.key === 'Enter' && changePassword()} />
             </div>
 
