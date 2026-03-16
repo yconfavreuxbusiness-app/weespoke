@@ -197,10 +197,42 @@ export default function TeamPage() {
                           const leaves = countLeaves(treeTask as any)
                           const hasChildren = treeTask?.children?.length > 0
                           const progress = hasChildren ? Math.round((leaves.done / leaves.total) * 100) : (task.status === 'Terminé' ? 100 : task.progress || 0)
-                          const isExpanded = expandedIds.has(task.id)
 
                           return (
-                            <MemberTaskRow key={task.id} task={treeTask || task} depth={0} cat={cat} sta={sta} progress={progress} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} />
+                            <tr key={task.id} style={{ borderBottom: '1px solid var(--border)', opacity: task.status === 'Terminé' ? 0.55 : 1 }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F9FB'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
+                              <td style={{ padding: '10px 12px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  {hasChildren
+                                    ? <Folder size={13} color={cat?.color} style={{ flexShrink: 0 }} />
+                                    : <FileText size={13} color="var(--text-dim)" style={{ flexShrink: 0 }} />
+                                  }
+                                  <div>
+                                    <div style={{ fontWeight: hasChildren ? '600' : '400', fontSize: '13px' }}>{task.title}</div>
+                                    {task.parent_id && (
+                                      <div style={{ fontSize: '11px', color: 'var(--text-dim)', fontFamily: 'var(--font-mono)' }}>
+                                        {allMap[task.parent_id]?.title}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span className="badge" style={{ background: cat?.bg, color: cat?.color, borderColor: cat?.border }}>{task.category}</span>
+                              </td>
+                              <td style={{ padding: '10px 12px' }}>
+                                <span className="badge" style={{ background: sta?.bg, color: sta?.color, borderColor: sta?.border }}>{task.status}</span>
+                              </td>
+                              <td style={{ padding: '10px 12px', minWidth: '120px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ flex: 1, height: '5px', background: 'var(--border)', borderRadius: '100px', overflow: 'hidden' }}>
+                                    <div style={{ height: '100%', borderRadius: '100px', width: `${progress}%`, background: progress === 100 ? '#059669' : cat?.color }} />
+                                  </div>
+                                  <span style={{ fontSize: '11px', fontFamily: 'var(--font-mono)', minWidth: '28px' }}>{progress}%</span>
+                                </div>
+                              </td>
+                            </tr>
                           )
                         })}
                       </tbody>
