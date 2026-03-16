@@ -218,8 +218,9 @@ export default function SessionsPage() {
 
       {/* Add task modal */}
       {showAddTask && (
-        <div className="overlay" onClick={() => setShowAddTask(false)}>
-          <div className="modal" onClick={e => e.stopPropagation()}>
+        <>
+          <div className="overlay" onClick={() => setShowAddTask(false)} />
+          <div className="modal">
             <div className="modal-header">
               <span style={{ fontWeight: '600' }}>Ajouter à la session</span>
               <button onClick={() => setShowAddTask(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -254,7 +255,7 @@ export default function SessionsPage() {
               })}
             </div>
           </div>
-        </div>
+        </>
       )}
     </div>
   )

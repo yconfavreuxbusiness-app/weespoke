@@ -48,8 +48,9 @@ function TaskModal({
   const canCreate = form.title.trim() && (!needsParent || form.parent_id)
 
   return (
-    <div className="overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+    <>
+      <div className="overlay" onClick={onClose} />
+      <div className="modal" style={{ maxWidth: '560px' }}>
         <div className="modal-header">
           <div style={{ fontWeight: '600', fontSize: '15px' }}>Nouvelle tache</div>
           <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -199,7 +200,7 @@ function TaskModal({
           </button>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
