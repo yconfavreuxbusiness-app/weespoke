@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Task, User } from '@/types'
 import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
 import { countLeaves } from '@/lib/taskTree'
-import { Plus, ChevronRight, ChevronDown, X, Check, Folder, FileText } from 'lucide-react'
+import { Plus, ChevronRight, ChevronDown, X, Check, Folder, FileText, Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/Modal'
 
 type TaskLevel = 'root' | 'sub' | 'subsub'
@@ -206,9 +206,138 @@ function TaskModal({
   )
 }
 
+
+function EditModal({
+  task, onClose, onSave, onDelete, users, currentUser
+}: {
+  task: Task
+  onClose: () => void
+  onSave: (id: string, data: any) => void
+  onDelete: (id: string) => void
+  users: User[]
+  currentUser: User
+}) {
+  const [form, setForm] = useState({
+    title: task.title,
+    description: task.description || '',
+    category: task.category,
+    urgency: task.urgency,
+    assigned_users: (task as any).assigned_users || [],
+    due_date: task.due_date || '',
+    status: task.status,
+  })
+  const [confirmDelete, setConfirmDelete] = useState(false)
+
+  return (
+    <Modal onClose={onClose}>
+      <div className="modal-header">
+        <div style={{ fontWeight: '600', fontSize: '15px' }}>Modifier la tâche</div>
+        <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
+      </div>
+      <div className="modal-body">
+        <div className="field">
+          <label className="label">Titre *</label>
+          <input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} />
+        </div>
+        <div className="field">
+          <label className="label">Description</label>
+          <textarea className="input" rows={2} value={form.description}
+            onChange={e => setForm(p => ({ ...p, description: e.target.value }))} />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="field">
+            <label className="label">Catégorie</label>
+            <select className="input" value={form.category}
+              onChange={e => setForm(p => ({ ...p, category: e.target.value as any }))}>
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.value}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label">Urgence</label>
+            <select className="input" value={form.urgency}
+              onChange={e => setForm(p => ({ ...p, urgency: e.target.value }))}>
+              {URGENCIES.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
+            </select>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="field">
+            <label className="label">Statut</label>
+            <select className="input" value={form.status}
+              onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+              {STATUSES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
+            </select>
+          </div>
+          <div className="field">
+            <label className="label">Échéance</label>
+            <input type="date" className="input" value={form.due_date}
+              onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
+          </div>
+        </div>
+        <div className="field">
+          <label className="label">Assigné à</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {users.map(u => {
+              const checked = form.assigned_users.includes(u.id)
+              return (
+                <button key={u.id} type="button"
+                  onClick={() => setForm(p => ({
+                    ...p,
+                    assigned_users: checked
+                      ? p.assigned_users.filter((id: string) => id !== u.id)
+                      : [...p.assigned_users, u.id]
+                  }))}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: '6px',
+                    padding: '5px 10px', borderRadius: '100px', cursor: 'pointer',
+                    border: `2px solid ${checked ? u.avatar_color : 'var(--border-dark)'}`,
+                    background: checked ? u.avatar_color + '15' : 'var(--surface)',
+                    fontFamily: 'var(--font)', fontSize: '12px', fontWeight: checked ? '600' : '400',
+                    color: checked ? u.avatar_color : 'var(--text-2)',
+                  }}>
+                  <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: u.avatar_color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '700', color: u.avatar_color }}>
+                    {u.name[0]}
+                  </div>
+                  {u.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {confirmDelete && (
+          <div className="alert alert-warning">
+            Supprimer cette tâche et toutes ses sous-tâches ?
+            <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+              <button onClick={() => onDelete(task.id)} className="btn btn-sm" style={{ background: '#DC2626', color: 'white', border: 'none' }}>
+                Confirmer
+              </button>
+              <button onClick={() => setConfirmDelete(false)} className="btn btn-sm btn-secondary">Annuler</button>
+            </div>
+          </div>
+        )}
+      </div>
+      <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+        {currentUser.role === 'admin' && !confirmDelete && (
+          <button onClick={() => setConfirmDelete(true)} className="btn btn-ghost" style={{ color: '#DC2626', fontSize: '12px' }}>
+            <Trash2 size={13} /> Supprimer
+          </button>
+        )}
+        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+          <button onClick={onClose} className="btn btn-secondary">Annuler</button>
+          <button onClick={() => form.title.trim() && onSave(task.id, form)} className="btn btn-primary"
+            disabled={!form.title.trim()}>
+            Sauvegarder
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
 function TaskRow({
   task, depth, users, currentUser,
-  onAddChild, onStatusChange, onValidate,
+  onAddChild, onStatusChange, onValidate, onEdit, onDelete,
   expandedIds, toggleExpand,
 }: {
   task: Task
@@ -218,6 +347,8 @@ function TaskRow({
   onAddChild: (parent: Task) => void
   onStatusChange: (id: string, status: string) => void
   onValidate: (id: string) => void
+  onEdit: (task: Task) => void
+  onDelete: (id: string) => void
   expandedIds: Set<string>
   toggleExpand: (id: string) => void
 }) {
@@ -317,13 +448,24 @@ function TaskRow({
                 <Plus size={11} /> Sous-tache
               </button>
             )}
+            <button onClick={() => onEdit(task)} className="btn btn-ghost btn-icon btn-sm" title="Modifier">
+              <Pencil size={12} />
+            </button>
+            {currentUser.role === 'admin' && (
+              <button onClick={() => onDelete(task.id)} className="btn btn-ghost btn-icon btn-sm" title="Supprimer"
+                style={{ color: '#DC2626' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#FEE2E2'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                <Trash2 size={12} />
+              </button>
+            )}
           </div>
         </td>
       </tr>
 
       {hasChildren && isExpanded && task.children!.map(child => (
         <TaskRow key={child.id} task={child} depth={depth + 1} users={users} currentUser={currentUser}
-          onAddChild={onAddChild} onStatusChange={onStatusChange} onValidate={onValidate}
+          onAddChild={onAddChild} onStatusChange={onStatusChange} onValidate={onValidate} onEdit={onEdit} onDelete={onDelete}
           expandedIds={expandedIds} toggleExpand={toggleExpand} />
       ))}
     </>
@@ -337,6 +479,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [parentForModal, setParentForModal] = useState<Task | null>(null)
+  const [editTask, setEditTask] = useState<Task | null>(null)
   const [filterCat, setFilterCat] = useState('all')
   const [filterStatus, setFilterStatus] = useState('all')
   const [filterUser, setFilterUser] = useState('all')
@@ -368,6 +511,13 @@ export default function TasksPage() {
     setLoading(false)
   }
 
+  const enrich = (task: any) => ({
+    ...task,
+    assignees: (task.assigned_users || []).map((id: string) => {
+      return users.find(u => u.id === id)
+    }).filter(Boolean)
+  })
+
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
       const next = new Set(Array.from(prev))
@@ -395,7 +545,7 @@ export default function TasksPage() {
       level,
     }).select('*, creator:created_by(*)').single()
     if (data) {
-      setTasks(prev => [data as any, ...prev])
+      setTasks(prev => [enrich(data), ...prev])
       if (form.parent_id) {
         setExpandedIds(prev => {
           const next = new Set(Array.from(prev))
@@ -416,6 +566,30 @@ export default function TasksPage() {
   const validateTask = async (taskId: string) => {
     await supabase.from('tasks').update({ validated: true }).eq('id', taskId)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, validated: true } : t))
+  }
+
+  const updateTask = async (taskId: string, form: any) => {
+    const updates = {
+      title: form.title,
+      description: form.description || null,
+      category: form.category,
+      urgency: form.urgency,
+      status: form.status,
+      assigned_users: form.assigned_users,
+      due_date: form.due_date || null,
+      progress: form.status === 'Terminé' ? 100 : undefined,
+    }
+    await supabase.from('tasks').update(updates).eq('id', taskId)
+    setTasks(prev => prev.map(t => t.id === taskId ? enrich({ ...t, ...updates }) : t))
+    setEditTask(null)
+  }
+
+  const deleteTask = async (taskId: string) => {
+    await supabase.from('tasks').delete().eq('id', taskId)
+    // Also delete children
+    await supabase.from('tasks').delete().eq('parent_id', taskId)
+    setTasks(prev => prev.filter(t => t.id !== taskId && t.parent_id !== taskId))
+    setEditTask(null)
   }
 
   const filteredRoots = tasks.filter(t => {
@@ -486,6 +660,7 @@ export default function TasksPage() {
                 <TaskRow key={task.id} task={task as any} depth={0} users={users} currentUser={user}
                   onAddChild={(parent) => { setParentForModal(parent); setShowModal(true) }}
                   onStatusChange={updateStatus} onValidate={validateTask}
+                  onEdit={setEditTask} onDelete={deleteTask}
                   expandedIds={expandedIds} toggleExpand={toggleExpand} />
               ))}
             </tbody>
@@ -501,6 +676,16 @@ export default function TasksPage() {
           currentUser={user}
           parentTask={parentForModal}
           tasks={tasks}
+        />
+      )}
+      {editTask && (
+        <EditModal
+          task={editTask}
+          onClose={() => setEditTask(null)}
+          onSave={updateTask}
+          onDelete={deleteTask}
+          users={users}
+          currentUser={user}
         />
       )}
     </div>

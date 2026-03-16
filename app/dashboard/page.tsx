@@ -2,10 +2,12 @@
 import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Task, User } from '@/types'
-import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
+import { CATEGORIES, STATUSES } from '@/lib/constants'
 import { countLeaves } from '@/lib/taskTree'
-import { CheckSquare, Clock, AlertCircle, TrendingUp, ChevronRight, ChevronDown, Folder, FileText } from 'lucide-react'
+import { CheckSquare, Clock, AlertCircle, TrendingUp, ChevronRight, ChevronDown, Folder, FileText, Pencil, Trash2, X } from 'lucide-react'
 import Link from 'next/link'
+import { Modal } from '@/components/Modal'
+import { URGENCIES } from '@/lib/constants'
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null)
@@ -13,6 +15,7 @@ export default function DashboardPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
+  const [editTask, setEditTask] = useState<Task | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('ws_user')
@@ -37,6 +40,22 @@ export default function DashboardPage() {
       setLoading(false)
     })
   }, [])
+
+  const updateTask = async (taskId: string, form: any) => {
+    const updates = { title: form.title, description: form.description || null, category: form.category, urgency: form.urgency, status: form.status, assigned_users: form.assigned_users, due_date: form.due_date || null }
+    await supabase.from('tasks').update(updates).eq('id', taskId)
+    const userMap: Record<string, any> = {}
+    users.forEach(u => { userMap[u.id] = u })
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, ...updates, assignees: (updates.assigned_users || []).map((id: string) => userMap[id]).filter(Boolean) } : t))
+    setEditTask(null)
+  }
+
+  const deleteTask = async (taskId: string) => {
+    await supabase.from('tasks').delete().eq('id', taskId)
+    await supabase.from('tasks').delete().eq('parent_id', taskId)
+    setTasks(prev => prev.filter(t => t.id !== taskId && t.parent_id !== taskId))
+    setEditTask(null)
+  }
 
   const toggleExpand = useCallback((id: string) => {
     setExpandedIds(prev => {
@@ -200,27 +219,87 @@ export default function DashboardPage() {
               <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)' }}>Statut</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)', minWidth: '120px' }}>Progression</th>
               <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)' }}>Assigné</th>
+              <th style={{ padding: '8px 12px', background: 'var(--surface-2)' }}></th>
             </tr>
           </thead>
           <tbody>
             {treeRoots.length === 0 ? (
               <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Aucune tâche</td></tr>
             ) : treeRoots.map(task => (
-              <DashTaskRow key={task.id} task={task} depth={0} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} />
+              <DashTaskRow key={task.id} task={task} depth={0} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} onEdit={setEditTask} onDelete={deleteTask} currentUser={user} />
             ))}
           </tbody>
         </table>
       </div>
+      {editTask && (
+        <Modal onClose={() => setEditTask(null)}>
+          <QuickEditModal task={editTask} onClose={() => setEditTask(null)} onSave={updateTask} onDelete={deleteTask} users={users} currentUser={user!} />
+        </Modal>
+      )}
     </div>
   )
 }
 
-function DashTaskRow({ task, depth, expandedIds, toggleExpand, allMap }: {
+function QuickEditModal({ task, onClose, onSave, onDelete, users, currentUser }: any) {
+  const [form, setForm] = useState({ title: task.title, description: task.description || '', category: task.category, urgency: task.urgency, status: task.status, assigned_users: (task as any).assigned_users || [], due_date: task.due_date || '' })
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  return (
+    <>
+      <div className="modal-header">
+        <div style={{ fontWeight: '600', fontSize: '15px' }}>Modifier la tâche</div>
+        <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
+      </div>
+      <div className="modal-body">
+        <div className="field"><label className="label">Titre</label><input className="input" value={form.title} onChange={e => setForm(p => ({ ...p, title: e.target.value }))} /></div>
+        <div className="field"><label className="label">Description</label><textarea className="input" rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="field"><label className="label">Catégorie</label>
+            <select className="input" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
+              {CATEGORIES.map((c: any) => <option key={c.value} value={c.value}>{c.value}</option>)}
+            </select>
+          </div>
+          <div className="field"><label className="label">Statut</label>
+            <select className="input" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+              {STATUSES.map((s: any) => <option key={s.value} value={s.value}>{s.value}</option>)}
+            </select>
+          </div>
+        </div>
+        <div className="field"><label className="label">Assigné à</label>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            {users.map((u: any) => {
+              const checked = form.assigned_users.includes(u.id)
+              return (
+                <button key={u.id} type="button" onClick={() => setForm(p => ({ ...p, assigned_users: checked ? p.assigned_users.filter((id: string) => id !== u.id) : [...p.assigned_users, u.id] }))}
+                  style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '5px 10px', borderRadius: '100px', cursor: 'pointer', border: `2px solid ${checked ? u.avatar_color : 'var(--border-dark)'}`, background: checked ? u.avatar_color + '15' : 'var(--surface)', fontFamily: 'var(--font)', fontSize: '12px', color: checked ? u.avatar_color : 'var(--text-2)' }}>
+                  <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: u.avatar_color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '700', color: u.avatar_color }}>{u.name[0]}</div>
+                  {u.name}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+        {confirmDelete && <div className="alert alert-warning">Supprimer cette tâche ?<div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}><button onClick={() => onDelete(task.id)} className="btn btn-sm" style={{ background: '#DC2626', color: 'white', border: 'none' }}>Confirmer</button><button onClick={() => setConfirmDelete(false)} className="btn btn-sm btn-secondary">Annuler</button></div></div>}
+      </div>
+      <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
+        {currentUser.role === 'admin' && !confirmDelete && <button onClick={() => setConfirmDelete(true)} className="btn btn-ghost" style={{ color: '#DC2626', fontSize: '12px' }}><Trash2 size={13} /> Supprimer</button>}
+        <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
+          <button onClick={onClose} className="btn btn-secondary">Annuler</button>
+          <button onClick={() => onSave(task.id, form)} className="btn btn-primary" disabled={!form.title.trim()}>Sauvegarder</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function DashTaskRow({ task, depth, expandedIds, toggleExpand, allMap, onEdit, onDelete, currentUser }: {
   task: any
   depth: number
   expandedIds: Set<string>
   toggleExpand: (id: string) => void
   allMap: Record<string, any>
+  onEdit: (t: any) => void
+  onDelete: (id: string) => void
+  currentUser: any
 }) {
 
   const hasChildren = task.children && task.children.length > 0
@@ -284,9 +363,21 @@ function DashTaskRow({ task, depth, expandedIds, toggleExpand, allMap }: {
             </div>
           ) : <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>—</span>}
         </td>
+        <td style={{ padding: '10px 12px' }}>
+          <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+            <button onClick={() => onEdit(task)} className="btn btn-ghost btn-icon btn-sm" title="Modifier"><Pencil size={12} /></button>
+            {currentUser?.role === 'admin' && (
+              <button onClick={() => onDelete(task.id)} className="btn btn-ghost btn-icon btn-sm" title="Supprimer" style={{ color: '#DC2626' }}
+                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#FEE2E2'}
+                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}>
+                <Trash2 size={12} />
+              </button>
+            )}
+          </div>
+        </td>
       </tr>
       {hasChildren && isExpanded && task.children.map((child: any) => (
-        <DashTaskRow key={child.id} task={child} depth={depth + 1} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} />
+        <DashTaskRow key={child.id} task={child} depth={depth + 1} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} onEdit={onEdit} onDelete={onDelete} currentUser={currentUser} />
       ))}
     </>
   )
