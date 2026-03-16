@@ -264,7 +264,7 @@ function EditModal({
           <div className="field">
             <label className="label">Statut</label>
             <select className="input" value={form.status}
-              onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+              onChange={e => setForm(p => ({ ...p, status: e.target.value as any }))}>
               {STATUSES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
             </select>
           </div>

@@ -254,12 +254,12 @@ function QuickEditModal({ task, onClose, onSave, onDelete, users, currentUser }:
         <div className="field"><label className="label">Description</label><textarea className="input" rows={2} value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
           <div className="field"><label className="label">Catégorie</label>
-            <select className="input" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value }))}>
+            <select className="input" value={form.category} onChange={e => setForm(p => ({ ...p, category: e.target.value as any }))}>
               {CATEGORIES.map((c: any) => <option key={c.value} value={c.value}>{c.value}</option>)}
             </select>
           </div>
           <div className="field"><label className="label">Statut</label>
-            <select className="input" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))}>
+            <select className="input" value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value as any }))}>
               {STATUSES.map((s: any) => <option key={s.value} value={s.value}>{s.value}</option>)}
             </select>
           </div>
