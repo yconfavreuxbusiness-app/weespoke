@@ -202,27 +202,30 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .overlay {
   position: fixed;
   top: 0;
-  left: 0;
+  left: var(--sidebar-w);
   right: 0;
   bottom: 0;
   background: rgba(0,0,0,0.45);
   backdrop-filter: blur(2px);
   z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
   animation: fadeIn 0.15s ease;
 }
 .modal {
-  position: fixed;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  width: 560px;
-  max-width: calc(100vw - var(--sidebar-w) - 48px);
+  width: 100%;
+  max-width: 560px;
   max-height: 85vh;
   display: flex;
   flex-direction: column;
   z-index: 101;
-  /* Position set via JS inline style */
+  flex-shrink: 0;
 }
 .modal-header {
   padding: 18px 20px;
