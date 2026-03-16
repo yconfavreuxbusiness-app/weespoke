@@ -20,11 +20,19 @@ export default function DashboardPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('tasks').select('*, assignee:assigned_to(*), creator:created_by(*)').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, creator:created_by(*)').order('created_at', { ascending: false }),
       supabase.from('users').select('*')
     ]).then(([{ data: t }, { data: u }]) => {
-      if (t) setTasks(t as any)
-      if (u) setUsers(u)
+      if (t && u) {
+        const userMap: Record<string, any> = {}
+        u.forEach((usr: any) => { userMap[usr.id] = usr })
+        const enriched = (t as any[]).map(task => ({
+          ...task,
+          assignees: (task.assigned_users || []).map((id: string) => userMap[id]).filter(Boolean)
+        }))
+        setTasks(enriched as any)
+        setUsers(u)
+      }
       setLoading(false)
     })
   }, [])
@@ -36,7 +44,7 @@ export default function DashboardPage() {
   )
 
   const rootTasks = tasks.filter(t => !t.parent_id)
-  const myTasks = tasks.filter(t => t.assigned_to === user.id && !t.parent_id)
+  const myTasks = tasks.filter(t => (t.assigned_users || []).includes(user.id) && !t.parent_id)
   const pendingVal = tasks.filter(t => !t.validated && t.created_by !== user.id)
   const urgent = tasks.filter(t => t.urgency === 'Urgent' && t.status !== 'Terminé' && !t.parent_id)
   const done = tasks.filter(t => t.status === 'Terminé' && !t.parent_id)
@@ -109,7 +117,7 @@ export default function DashboardPage() {
           <div className="section-header">Charge par membre</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {users.map(u => {
-              const uTasks = tasks.filter(t => t.assigned_to === u.id && !t.parent_id)
+              const uTasks = tasks.filter(t => (t.assigned_users || []).includes(u.id) && !t.parent_id)
               const uDone = uTasks.filter(t => t.status === 'Terminé').length
               const pct = uTasks.length > 0 ? Math.round((uDone / uTasks.length) * 100) : 0
               return (

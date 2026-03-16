@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Task, User } from '@/types'
-import { CATEGORIES, STATUSES } from '@/lib/constants'
+import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
 import { countLeaves } from '@/lib/taskTree'
 
 export default function TeamPage() {
@@ -20,11 +20,19 @@ export default function TeamPage() {
 
   useEffect(() => {
     Promise.all([
-      supabase.from('tasks').select('*, assignee:assigned_to(*), creator:created_by(*)').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, creator:created_by(*)').order('created_at', { ascending: false }),
       supabase.from('users').select('*')
     ]).then(([{ data: t }, { data: u }]) => {
-      if (t) setTasks(t as any)
-      if (u) setUsers(u)
+      if (t && u) {
+        const userMap: Record<string, any> = {}
+        u.forEach((usr: any) => { userMap[usr.id] = usr })
+        const enriched = (t as any[]).map(task => ({
+          ...task,
+          assignees: (task.assigned_users || []).map((id: string) => userMap[id]).filter(Boolean)
+        }))
+        setTasks(enriched as any)
+        setUsers(u)
+      }
       setLoading(false)
     })
   }, [])
@@ -33,6 +41,11 @@ export default function TeamPage() {
     await supabase.from('tasks').update({ status }).eq('id', taskId)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: status as any } : t))
   }
+
+  // Build tree map once
+  const allMap: Record<string, Task & { children: Task[] }> = {}
+  tasks.forEach(t => { allMap[t.id] = { ...t, children: [] } })
+  tasks.forEach(t => { if (t.parent_id && allMap[t.parent_id]) allMap[t.parent_id].children.push(allMap[t.id]) })
 
   const rootTasks = tasks.filter(t => !t.parent_id)
 
@@ -51,7 +64,6 @@ export default function TeamPage() {
         </div>
       </div>
 
-      {/* Tabs */}
       <div className="tabs" style={{ marginBottom: '20px' }}>
         <button className={`tab ${tab === 'kanban' ? 'active' : ''}`} onClick={() => setTab('kanban')}>
           Board Kanban
@@ -90,11 +102,7 @@ export default function TeamPage() {
                     </div>
                   ) : colTasks.map(task => {
                     const cat = CATEGORIES.find(c => c.value === task.category)
-                    const assignee = (task as any).assignee
-                    // Build tree for this task to get children
-                    const allMap: Record<string, Task & { children: Task[] }> = {}
-                    tasks.forEach(t => { allMap[t.id] = { ...t, children: [] } })
-                    tasks.forEach(t => { if (t.parent_id && allMap[t.parent_id]) allMap[t.parent_id].children.push(allMap[t.id]) })
+                    const assignees: any[] = (task as any).assignees || []
                     const treeTask = allMap[task.id]
                     const leaves = countLeaves(treeTask as any)
                     const progress = leaves.total > 1
@@ -130,31 +138,27 @@ export default function TeamPage() {
                         )}
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          {assignee ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                              <div className="avatar" style={{
-                                width: '20px', height: '20px', fontSize: '9px',
-                                background: `${assignee.avatar_color}15`,
-                                border: `1.5px solid ${assignee.avatar_color}40`,
-                                color: assignee.avatar_color,
-                              }}>{assignee.name[0]}</div>
-                              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{assignee.name}</span>
+                          {assignees.length > 0 ? (
+                            <div style={{ display: 'flex', gap: '3px' }}>
+                              {assignees.map((a: any) => (
+                                <div key={a.id} title={a.name} style={{
+                                  width: '20px', height: '20px', borderRadius: '50%', fontSize: '9px',
+                                  background: `${a.avatar_color}15`, border: `1.5px solid ${a.avatar_color}40`,
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontWeight: '700', color: a.avatar_color,
+                                }}>{a.name[0]}</div>
+                              ))}
                             </div>
                           ) : <div />}
 
-                          <select
-                            value={task.status}
-                            onChange={e => updateStatus(task.id, e.target.value)}
+                          <select value={task.status} onChange={e => updateStatus(task.id, e.target.value)}
                             onClick={e => e.stopPropagation()}
                             style={{
                               fontSize: '10px', padding: '2px 6px',
-                              border: '1px solid var(--border-dark)',
-                              borderRadius: '4px', cursor: 'pointer',
-                              fontFamily: 'var(--font)',
-                              background: 'var(--surface)',
-                              color: 'var(--text-muted)',
-                            }}
-                          >
+                              border: '1px solid var(--border-dark)', borderRadius: '4px',
+                              cursor: 'pointer', fontFamily: 'var(--font)',
+                              background: 'var(--surface)', color: 'var(--text-muted)',
+                            }}>
                             {STATUSES.map(s => <option key={s.value} value={s.value}>{s.value}</option>)}
                           </select>
                         </div>
@@ -171,44 +175,36 @@ export default function TeamPage() {
       {/* MEMBERS */}
       {tab === 'members' && (
         <div>
-          {/* Member selector */}
           <div style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
-            <button
-              className={`btn ${memberFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setMemberFilter('all')}
-            >
+            <button className={`btn ${memberFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setMemberFilter('all')}>
               Tous
             </button>
             {users.map(u => (
-              <button
-                key={u.id}
-                className={`btn ${memberFilter === u.id ? 'btn-secondary' : 'btn-secondary'}`}
+              <button key={u.id} className="btn btn-secondary"
                 onClick={() => setMemberFilter(u.id)}
                 style={{
                   borderColor: memberFilter === u.id ? u.avatar_color : undefined,
                   color: memberFilter === u.id ? u.avatar_color : undefined,
                   background: memberFilter === u.id ? `${u.avatar_color}10` : undefined,
-                }}
-              >
-                <div className="avatar" style={{
-                  width: '18px', height: '18px', fontSize: '9px',
+                }}>
+                <div style={{
+                  width: '18px', height: '18px', borderRadius: '50%', fontSize: '9px',
                   background: `${u.avatar_color}20`, color: u.avatar_color,
-                  border: 'none',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700',
                 }}>{u.name[0]}</div>
                 {u.name}
               </button>
             ))}
           </div>
 
-          {/* Per-member sections */}
           {(memberFilter === 'all' ? users : users.filter(u => u.id === memberFilter)).map(u => {
-            const uTasks = rootTasks.filter(t => t.assigned_to === u.id)
+            const uTasks = rootTasks.filter(t => (t.assigned_users || []).includes(u.id))
             const active = uTasks.filter(t => t.status !== 'Terminé')
             const done = uTasks.filter(t => t.status === 'Terminé')
 
             return (
               <div key={u.id} style={{ marginBottom: '24px' }}>
-                {/* Member header */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: '10px',
                   marginBottom: '12px', paddingBottom: '10px',
@@ -216,8 +212,7 @@ export default function TeamPage() {
                 }}>
                   <div className="avatar" style={{
                     width: '32px', height: '32px', fontSize: '13px',
-                    background: `${u.avatar_color}15`,
-                    border: `2px solid ${u.avatar_color}40`,
+                    background: `${u.avatar_color}15`, border: `2px solid ${u.avatar_color}40`,
                     color: u.avatar_color,
                   }}>{u.name[0]}</div>
                   <div>
@@ -228,7 +223,6 @@ export default function TeamPage() {
                   </div>
                 </div>
 
-                {/* Tasks table */}
                 {uTasks.length === 0 ? (
                   <div style={{ padding: '16px', background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '6px', fontSize: '13px', color: 'var(--text-dim)', textAlign: 'center' }}>
                     Aucune tâche assignée
@@ -250,11 +244,7 @@ export default function TeamPage() {
                           const cat = CATEGORIES.find(c => c.value === task.category)
                           const sta = STATUSES.find(s => s.value === task.status)
                           const urg = URGENCIES.find(u => u.value === task.urgency)
-                          // Build children for this task
-                          const allMap2: Record<string, Task & { children: Task[] }> = {}
-                          tasks.forEach(t => { allMap2[t.id] = { ...t, children: [] } })
-                          tasks.forEach(t => { if (t.parent_id && allMap2[t.parent_id]) allMap2[t.parent_id].children.push(allMap2[t.id]) })
-                          const treeTask = allMap2[task.id]
+                          const treeTask = allMap[task.id]
                           const leaves = countLeaves(treeTask as any)
                           const progress = leaves.total > 1
                             ? Math.round((leaves.done / leaves.total) * 100)
@@ -270,16 +260,8 @@ export default function TeamPage() {
                                   </div>
                                 )}
                               </td>
-                              <td>
-                                <span className="badge" style={{ background: cat?.bg, color: cat?.color, borderColor: cat?.border }}>
-                                  {task.category}
-                                </span>
-                              </td>
-                              <td>
-                                <span className="badge" style={{ background: sta?.bg, color: sta?.color, borderColor: sta?.border }}>
-                                  {task.status}
-                                </span>
-                              </td>
+                              <td><span className="badge" style={{ background: cat?.bg, color: cat?.color, borderColor: cat?.border }}>{task.category}</span></td>
+                              <td><span className="badge" style={{ background: sta?.bg, color: sta?.color, borderColor: sta?.border }}>{task.status}</span></td>
                               <td>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                                   <div className="badge-dot" style={{ background: urg?.dot }} />
@@ -309,6 +291,3 @@ export default function TeamPage() {
     </div>
   )
 }
-
-// Need to import URGENCIES
-import { URGENCIES } from '@/lib/constants'

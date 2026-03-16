@@ -50,7 +50,7 @@ function TaskModal({
   return (
     <>
       <div className="overlay" onClick={onClose} />
-      <div className="modal" style={{ maxWidth: '560px' }}>
+      <div className="modal">
         <div className="modal-header">
           <div style={{ fontWeight: '600', fontSize: '15px' }}>Nouvelle tache</div>
           <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -58,29 +58,33 @@ function TaskModal({
 
         <div className="modal-body">
           <div className="field">
-            <label className="label">Type de tache</label>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px' }}>
+            <label className="label">Type de tâche</label>
+            <div style={{ display: 'flex', gap: '6px' }}>
               {LEVEL_OPTIONS.map(opt => (
                 <button
                   key={opt.value}
                   onClick={() => handleLevelChange(opt.value)}
                   style={{
-                    padding: '10px 8px',
+                    flex: 1,
+                    padding: '7px 6px',
                     border: `2px solid ${level === opt.value ? 'var(--accent)' : 'var(--border-dark)'}`,
-                    borderRadius: '8px',
+                    borderRadius: '6px',
                     background: level === opt.value ? '#FFF3EE' : 'var(--surface)',
                     cursor: 'pointer',
                     textAlign: 'center',
                     transition: 'all 0.15s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
                   }}
                 >
-                  <div style={{ fontSize: '18px', marginBottom: '4px' }}>
+                  <span style={{ fontSize: '13px' }}>
                     {opt.value === 'root' ? '📁' : opt.value === 'sub' ? '📄' : '✅'}
-                  </div>
-                  <div style={{ fontSize: '12px', fontWeight: '600', color: level === opt.value ? 'var(--accent)' : 'var(--text)', marginBottom: '2px' }}>
+                  </span>
+                  <span style={{ fontSize: '12px', fontWeight: '600', color: level === opt.value ? 'var(--accent)' : 'var(--text)' }}>
                     {opt.label}
-                  </div>
-                  <div style={{ fontSize: '10px', color: 'var(--text-muted)', lineHeight: 1.3 }}>{opt.desc}</div>
+                  </span>
                 </button>
               ))}
             </div>
@@ -391,7 +395,7 @@ export default function TasksPage() {
       progress: 0,
       parent_id: form.parent_id || null,
       level,
-    }).select('*, assignee:assigned_to(*), creator:created_by(*)').single()
+    }).select('*, creator:created_by(*)').single()
     if (data) {
       setTasks(prev => [data as any, ...prev])
       if (form.parent_id) {

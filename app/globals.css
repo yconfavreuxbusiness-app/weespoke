@@ -212,20 +212,19 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 }
 .modal {
   position: fixed;
-  top: 50%;
-  left: 50%;
+  top: 50vh;
+  left: 50vw;
   transform: translate(-50%, -50%);
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px rgba(0,0,0,0.2);
-  width: calc(100vw - 40px);
-  max-width: 540px;
-  max-height: calc(100vh - 80px);
+  width: 560px;
+  max-width: calc(100vw - 48px);
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   z-index: 101;
-  animation: modalIn 0.2s ease;
 }
 .modal-header {
   padding: 18px 20px;
