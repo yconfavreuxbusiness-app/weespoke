@@ -202,10 +202,11 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   backdrop-filter: blur(2px);
   z-index: 100;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 20px;
+  padding: 40px 20px;
   animation: fadeIn 0.15s ease;
+  overflow-y: auto;
 }
 .modal {
   background: var(--surface);
@@ -214,8 +215,7 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   box-shadow: var(--shadow-md);
   width: 100%;
   max-width: 540px;
-  max-height: 90vh;
-  overflow-y: auto;
+  margin: auto;
   animation: fadeUp 0.2s ease;
 }
 .modal-header {
