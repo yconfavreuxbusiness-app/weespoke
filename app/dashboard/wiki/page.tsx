@@ -19,7 +19,7 @@ const TABS = [
   { id: 'cold_start', label: 'Cold Start', emoji: '❄️' },
   { id: 'scripts', label: 'Scripts Victor', emoji: '🎙️' },
   { id: 'spotscore', label: 'SpotScore', emoji: '⚡' },
-  { id: 'mvp', label: 'MVP / V1', emoji: '🧪' },
+  { id: 'mvp', label: 'MVP', emoji: '🧪' },
 ]
 
 function CopyButton({ text }: { text: string }) {
@@ -153,6 +153,29 @@ function EditableSection({ section, isAdmin, onSave }: {
                 </div>
                 <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px' }}>Condition : {item.condition}</div>
                 <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>→ {item.decision}</div>
+              </div>
+            ))}
+          </div>
+        )
+      }
+
+      if (first?.cat && first?.items) {
+        // Scope sections
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {parsed.map((group: any, i: number) => (
+              <div key={i} style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--border)', fontSize: '11px', fontWeight: '700', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {group.cat}
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {group.items.map((item: string, j: number) => (
+                    <div key={j} style={{ display: 'flex', gap: '8px', fontSize: '13px', color: 'var(--text-2)' }}>
+                      <span style={{ color: 'var(--accent)', flexShrink: 0 }}>•</span>
+                      {item}
+                    </div>
+                  ))}
+                </div>
               </div>
             ))}
           </div>
