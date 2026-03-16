@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { User } from '@/types'
-import { LayoutDashboard, CheckSquare, Users, Calendar, LogOut, Bookmark, BookOpen } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, Users, Calendar, LogOut, Bookmark, BookOpen, Settings } from 'lucide-react'
 
 const NAV = [
   { href: '/dashboard', label: 'Vue d\'ensemble', icon: LayoutDashboard },
@@ -12,6 +12,7 @@ const NAV = [
   { href: '/dashboard/sessions', label: 'Sessions', icon: Calendar },
   { href: '/dashboard/resources', label: 'Ressources', icon: Bookmark },
   { href: '/dashboard/wiki', label: 'Wiki', icon: BookOpen },
+  { href: '/dashboard/settings', label: 'Paramètres', icon: Settings },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -20,9 +21,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
 
   useEffect(() => {
-    const stored = localStorage.getItem('ws_user')
-    if (!stored) { router.push('/'); return }
-    setUser(JSON.parse(stored))
+    const session = localStorage.getItem('ws_session')
+    if (!session) { router.push('/'); return }
+    try {
+      const data = JSON.parse(session)
+      if (!data.expires || Date.now() > data.expires) {
+        localStorage.removeItem('ws_user')
+        localStorage.removeItem('ws_session')
+        router.push('/')
+        return
+      }
+      setUser(data.user)
+    } catch {
+      router.push('/')
+    }
   }, [router])
 
   if (!user) return null
@@ -124,7 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
           <button
-            onClick={() => { localStorage.removeItem('ws_user'); router.push('/') }}
+            onClick={async () => { await fetch('/api/logout', { method: 'POST' }); localStorage.removeItem('ws_user'); localStorage.removeItem('ws_session'); router.push('/') }}
             className="btn btn-ghost"
             style={{ width: '100%', justifyContent: 'flex-start', fontSize: '12px', padding: '6px 10px' }}
           >
