@@ -3,13 +3,15 @@ import { useEffect, useState } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { User } from '@/types'
-import { LayoutDashboard, CheckSquare, Users, Calendar, LogOut, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, CheckSquare, Users, Calendar, LogOut, Bookmark, BookOpen } from 'lucide-react'
 
 const NAV = [
   { href: '/dashboard', label: 'Vue d\'ensemble', icon: LayoutDashboard },
   { href: '/dashboard/tasks', label: 'Tâches', icon: CheckSquare },
   { href: '/dashboard/team', label: 'Équipe', icon: Users },
   { href: '/dashboard/sessions', label: 'Sessions', icon: Calendar },
+  { href: '/dashboard/resources', label: 'Ressources', icon: Bookmark },
+  { href: '/dashboard/wiki', label: 'Wiki', icon: BookOpen },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
