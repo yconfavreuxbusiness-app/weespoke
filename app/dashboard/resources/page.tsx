@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { User } from '@/types'
 import { CATEGORIES } from '@/lib/constants'
 import { Plus, X, ExternalLink, FileText, Image, Link as LinkIcon, Trash2 } from 'lucide-react'
+import { Modal } from '@/components/Modal'
 
 type ResourceType = 'link' | 'document' | 'asset'
 
@@ -171,9 +172,7 @@ export default function ResourcesPage() {
 
       {/* Modal */}
       {showModal && (
-        <>
-          <div className="overlay" onClick={() => setShowModal(false)} />
-          <div className="modal">
+        <Modal onClose={() => setShowModal(false)}>
             <div className="modal-header">
               <div style={{ fontWeight: '600', fontSize: '15px' }}>Ajouter une ressource</div>
               <button onClick={() => setShowModal(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -235,8 +234,7 @@ export default function ResourcesPage() {
                 Ajouter
               </button>
             </div>
-          </div>
-        </>
+        </Modal>
       )}
     </div>
   )

@@ -5,6 +5,7 @@ import { Task, User } from '@/types'
 import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
 import { countLeaves } from '@/lib/taskTree'
 import { Plus, ChevronRight, ChevronDown, X, Check, Folder, FileText } from 'lucide-react'
+import { Modal } from '@/components/Modal'
 
 type TaskLevel = 'root' | 'sub' | 'subsub'
 
@@ -48,9 +49,7 @@ function TaskModal({
   const canCreate = form.title.trim() && (!needsParent || form.parent_id)
 
   return (
-    <>
-      <div className="overlay" onClick={onClose} />
-      <div className="modal">
+    <Modal onClose={onClose} maxWidth={560}>
         <div className="modal-header">
           <div style={{ fontWeight: '600', fontSize: '15px' }}>Nouvelle tache</div>
           <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -203,8 +202,7 @@ function TaskModal({
             Creer
           </button>
         </div>
-      </div>
-    </>
+    </Modal>
   )
 }
 

@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { Task, User, Session } from '@/types'
 import { CATEGORIES } from '@/lib/constants'
 import { Plus, X, ChevronRight, Zap } from 'lucide-react'
+import { Modal } from '@/components/Modal'
 
 function getWeekBounds(date: Date) {
   const d = new Date(date)
@@ -218,9 +219,7 @@ export default function SessionsPage() {
 
       {/* Add task modal */}
       {showAddTask && (
-        <>
-          <div className="overlay" onClick={() => setShowAddTask(false)} />
-          <div className="modal">
+        <Modal onClose={() => setShowAddTask(false)}>
             <div className="modal-header">
               <span style={{ fontWeight: '600' }}>Ajouter à la session</span>
               <button onClick={() => setShowAddTask(false)} className="btn btn-ghost btn-icon"><X size={16} /></button>
@@ -254,8 +253,7 @@ export default function SessionsPage() {
                 )
               })}
             </div>
-          </div>
-        </>
+        </Modal>
       )}
     </div>
   )
