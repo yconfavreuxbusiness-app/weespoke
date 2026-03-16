@@ -198,15 +198,14 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.35);
+  background: rgba(0,0,0,0.45);
   backdrop-filter: blur(2px);
   z-index: 100;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: center;
-  padding: 40px 20px;
+  padding: 20px;
   animation: fadeIn 0.15s ease;
-  overflow-y: auto;
 }
 .modal {
   background: var(--surface);
@@ -215,8 +214,10 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   box-shadow: var(--shadow-md);
   width: 100%;
   max-width: 540px;
-  margin: auto;
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
   animation: fadeUp 0.2s ease;
+  flex-shrink: 0;
 }
 .modal-header {
   padding: 18px 20px;
@@ -224,6 +225,10 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 1;
 }
 .modal-body { padding: 20px; display: flex; flex-direction: column; gap: 14px; }
 .modal-footer {
@@ -232,6 +237,9 @@ tbody td { padding: 10px 12px; vertical-align: middle; }
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
 }
 
 /* ---- AVATAR ---- */
