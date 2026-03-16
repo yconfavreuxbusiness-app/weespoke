@@ -5,7 +5,7 @@ import { Task, User } from '@/types'
 import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
 import { enrichTasks, buildUserMap, getProjects, getModules, getRealTasks, getTaskContext } from '@/lib/taskUtils'
 import { Modal } from '@/components/Modal'
-import { Plus, ChevronRight, Folder, FileText, X, Check, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import { Plus, ChevronRight, Folder, FileText, X, Check, Pencil, Trash2, ArrowLeft, MessageSquare, CheckCircle2, Clock } from 'lucide-react'
 
 type View = 'projects' | 'modules' | 'tasks'
 
@@ -23,6 +23,7 @@ export default function TasksPage() {
   // Modals
   const [showCreate, setShowCreate] = useState(false)
   const [editTask, setEditTask] = useState<Task | null>(null)
+  const [quickTask, setQuickTask] = useState<Task | null>(null)
 
   // Filter
   const [filterStatus, setFilterStatus] = useState('all')
@@ -87,6 +88,23 @@ export default function TasksPage() {
     setTasks(prev => prev.filter(t => t.id !== id && t.parent_id !== id))
     setEditTask(null)
     if (view === 'tasks' && editTask?.id === id) {}
+  }
+
+  const toggleValidation = async (task: Task, userId: string) => {
+    const current: string[] = (task as any).validations || []
+    const isValidated = current.includes(userId)
+    const newValidations = isValidated ? current.filter(id => id !== userId) : [...current, userId]
+    const assignedUsers: string[] = (task as any).assigned_users || []
+    const allValidated = assignedUsers.length > 0 && assignedUsers.every(id => newValidations.includes(id))
+    const newStatus = allValidated ? 'Terminé' : (task.status === 'Terminé' ? 'En cours' : task.status)
+    await supabase.from('tasks').update({ validations: newValidations, status: newStatus }).eq('id', task.id)
+    setTasks(prev => prev.map(t => t.id === task.id ? { ...t, validations: newValidations, status: newStatus as any } : t))
+  }
+
+  const updateTaskProgress = async (id: string, progress: number) => {
+    const newStatus = progress === 100 ? 'Terminé' : progress > 0 ? 'En cours' : 'À faire'
+    await supabase.from('tasks').update({ progress, status: newStatus }).eq('id', id)
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, progress, status: newStatus as any } : t))
   }
 
   const updateStatus = async (id: string, status: string) => {
@@ -291,7 +309,17 @@ export default function TasksPage() {
                       <td style={{ padding: '10px 12px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                           {!task.validated && <span style={{ fontSize: '10px', background: '#FFF3EE', color: 'var(--accent)', padding: '1px 5px', borderRadius: '4px', fontFamily: 'var(--font-mono)' }}>⏳</span>}
-                          <div style={{ fontWeight: '500', fontSize: '13px' }}>{task.title}</div>
+                          <button onClick={() => setQuickTask(task)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', padding: 0 }}>
+                            <div style={{ fontWeight: '500', fontSize: '13px', color: 'var(--text)', textDecoration: 'none' }}
+                              onMouseEnter={e => (e.target as HTMLElement).style.textDecoration = 'underline'}
+                              onMouseLeave={e => (e.target as HTMLElement).style.textDecoration = 'none'}>
+                              {task.title}
+                            </div>
+                          </button>
+                          {(task as any).progress > 0 && task.status !== 'Terminé' && (
+                            <span style={{ fontSize: '10px', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>{(task as any).progress}%</span>
+                          )}
                         </div>
                         {task.description && <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{task.description}</div>}
                       </td>
@@ -309,10 +337,18 @@ export default function TasksPage() {
                       </td>
                       <td style={{ padding: '10px 12px' }}>
                         {assignees.length > 0 ? (
-                          <div style={{ display: 'flex', gap: '3px' }}>
-                            {assignees.map((a: any) => (
-                              <div key={a.id} title={a.name} style={{ width: '24px', height: '24px', borderRadius: '50%', background: `${a.avatar_color}15`, border: `1.5px solid ${a.avatar_color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', color: a.avatar_color }}>{a.name[0]}</div>
-                            ))}
+                          <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                            {assignees.map((a: any) => {
+                              const validated = ((task as any).validations || []).includes(a.id)
+                              const isMe = a.id === user.id
+                              return (
+                                <div key={a.id} title={`${a.name} — ${validated ? 'Validé ✓' : 'En attente'}`}
+                                  onClick={() => isMe && toggleValidation(task, user.id)}
+                                  style={{ position: 'relative', width: '24px', height: '24px', borderRadius: '50%', background: validated ? `${a.avatar_color}30` : `${a.avatar_color}15`, border: `2px solid ${validated ? a.avatar_color : a.avatar_color + '40'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', color: a.avatar_color, cursor: isMe ? 'pointer' : 'default', transition: 'all 0.15s' }}>
+                                  {validated ? '✓' : a.name[0]}
+                                </div>
+                              )
+                            })}
                           </div>
                         ) : <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>—</span>}
                       </td>
@@ -361,6 +397,30 @@ export default function TasksPage() {
       {editTask && (
         <Modal onClose={() => setEditTask(null)}>
           <EditTaskModal task={editTask} onClose={() => setEditTask(null)} onSave={updateItem} onDelete={deleteItem} users={users} currentUser={user} />
+        </Modal>
+      )}
+
+      {/* QUICK TASK MODAL */}
+      {quickTask && (
+        <Modal onClose={() => setQuickTask(null)}>
+          <QuickTaskModal
+            task={quickTask} onClose={() => setQuickTask(null)}
+            currentUser={user} users={users}
+            onProgressUpdate={async (progress: number) => {
+              const newStatus = progress === 100 ? 'Terminé' : progress > 0 ? 'En cours' : 'À faire'
+              await supabase.from('tasks').update({ progress, status: newStatus }).eq('id', quickTask.id)
+              setTasks(prev => prev.map(t => t.id === quickTask.id ? { ...t, progress, status: newStatus as any } : t))
+              setQuickTask(prev => prev ? { ...prev, progress, status: newStatus as any } : null)
+            }}
+            onValidate={() => toggleValidation(quickTask, user.id).then(() => {
+              setQuickTask(prev => {
+                if (!prev) return null
+                const current: string[] = (prev as any).validations || []
+                const isVal = current.includes(user.id)
+                return { ...prev, validations: isVal ? current.filter(id => id !== user.id) : [...current, user.id] } as any
+              })
+            })}
+          />
         </Modal>
       )}
     </div>
@@ -500,6 +560,146 @@ function EditTaskModal({ task, onClose, onSave, onDelete, users, currentUser }: 
         <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
           <button onClick={onClose} className="btn btn-secondary">Annuler</button>
           <button onClick={() => form.title.trim() && onSave(task.id, form)} className="btn btn-primary" disabled={!form.title.trim()}>Sauvegarder</button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function QuickTaskModal({ task, onClose, currentUser, users, onProgressUpdate, onValidate }: any) {
+  const [progress, setProgress] = useState((task as any).progress || 0)
+  const [comment, setComment] = useState('')
+  const [comments, setComments] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
+  const cat = CATEGORIES.find(c => c.value === task.category)
+  const assignees: any[] = (task as any).assignees || []
+  const validations: string[] = (task as any).validations || []
+  const assignedUsers: string[] = (task as any).assigned_users || []
+  const isAssigned = assignedUsers.includes(currentUser.id)
+  const isValidated = validations.includes(currentUser.id)
+  const allValidated = assignedUsers.length > 0 && assignedUsers.every(id => validations.includes(id))
+
+  useEffect(() => {
+    supabase.from('comments').select('*, user:user_id(name, avatar_color)').eq('task_id', task.id).order('created_at', { ascending: true })
+      .then(({ data }) => { if (data) setComments(data) })
+  }, [task.id])
+
+  const submitComment = async () => {
+    if (!comment.trim()) return
+    setSaving(true)
+    const { data } = await supabase.from('comments').insert({ task_id: task.id, user_id: currentUser.id, content: comment })
+      .select('*, user:user_id(name, avatar_color)').single()
+    if (data) setComments(prev => [...prev, data])
+    setComment('')
+    setSaving(false)
+  }
+
+  return (
+    <>
+      <div className="modal-header">
+        <div>
+          <div style={{ fontWeight: '600', fontSize: '15px' }}>{task.title}</div>
+          {task.description && <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '2px' }}>{task.description}</div>}
+        </div>
+        <button onClick={onClose} className="btn btn-ghost btn-icon"><X size={16} /></button>
+      </div>
+      <div className="modal-body">
+
+        {/* Status + Assignees */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="badge" style={{ background: cat?.bg, color: cat?.color, borderColor: cat?.border }}>{task.category}</span>
+          <div style={{ display: 'flex', gap: '4px' }}>
+            {assignees.map((a: any) => {
+              const val = validations.includes(a.id)
+              return (
+                <div key={a.id} title={`${a.name} — ${val ? 'Validé ✓' : 'En attente'}`}
+                  style={{ width: '26px', height: '26px', borderRadius: '50%', background: val ? `${a.avatar_color}30` : `${a.avatar_color}15`, border: `2px solid ${val ? a.avatar_color : a.avatar_color + '50'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: '700', color: a.avatar_color }}>
+                  {val ? '✓' : a.name[0]}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Validation multi-owners */}
+        {assignedUsers.length > 1 && (
+          <div style={{ background: allValidated ? '#ECFDF5' : '#F9FAFB', border: `1px solid ${allValidated ? '#A7F3D0' : 'var(--border)'}`, borderRadius: '8px', padding: '12px' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', marginBottom: '8px', color: allValidated ? '#059669' : 'var(--text-muted)' }}>
+              {allValidated ? '✅ Tâche validée par tous' : `⏳ ${validations.length}/${assignedUsers.length} validations`}
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {assignees.map((a: any) => {
+                const val = validations.includes(a.id)
+                return (
+                  <div key={a.id} style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '4px 10px', borderRadius: '100px', background: val ? `${a.avatar_color}15` : 'var(--surface)', border: `1px solid ${val ? a.avatar_color : 'var(--border-dark)'}` }}>
+                    <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: a.avatar_color + '20', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '8px', fontWeight: '700', color: a.avatar_color }}>{a.name[0]}</div>
+                    <span style={{ fontSize: '12px', color: val ? a.avatar_color : 'var(--text-muted)', fontWeight: val ? '600' : '400' }}>{a.name}</span>
+                    {val ? <CheckCircle2 size={12} color={a.avatar_color} /> : <Clock size={12} color="var(--text-dim)" />}
+                  </div>
+                )
+              })}
+            </div>
+            {isAssigned && (
+              <button onClick={onValidate} className={`btn btn-sm ${isValidated ? 'btn-secondary' : 'btn-primary'}`}
+                style={{ marginTop: '10px', fontSize: '12px' }}>
+                {isValidated ? '↩ Annuler ma validation' : '✓ Marquer comme fait'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Solo validation */}
+        {assignedUsers.length === 1 && isAssigned && (
+          <button onClick={onValidate} className={`btn ${isValidated ? 'btn-secondary' : 'btn-primary'}`}
+            style={{ width: '100%', justifyContent: 'center', fontSize: '13px' }}>
+            {isValidated ? '↩ Annuler ma validation' : '✓ Marquer comme fait'}
+          </button>
+        )}
+
+        {/* Progress slider */}
+        {!allValidated && (
+          <div className="field">
+            <label className="label">Avancement — {progress}%</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ height: '6px', background: 'var(--border)', borderRadius: '100px', overflow: 'hidden', marginBottom: '6px' }}>
+                  <div style={{ height: '100%', borderRadius: '100px', width: `${progress}%`, background: progress === 100 ? '#059669' : cat?.color, transition: 'width 0.3s ease' }} />
+                </div>
+                <input type="range" min="0" max="100" step="5" value={progress}
+                  onChange={e => setProgress(parseInt(e.target.value))}
+                  style={{ width: '100%', accentColor: cat?.color, cursor: 'pointer' }} />
+              </div>
+              <button onClick={() => onProgressUpdate(progress)} className="btn btn-sm btn-primary" style={{ fontSize: '12px' }}>OK</button>
+            </div>
+          </div>
+        )}
+
+        {/* Comments */}
+        <div className="field">
+          <label className="label">Commentaires ({comments.length})</label>
+          {comments.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px', maxHeight: '200px', overflowY: 'auto' }}>
+              {comments.map((c: any) => (
+                <div key={c.id} style={{ display: 'flex', gap: '8px' }}>
+                  <div style={{ width: '26px', height: '26px', borderRadius: '50%', background: c.user?.avatar_color + '20', border: `1.5px solid ${c.user?.avatar_color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '700', color: c.user?.avatar_color, flexShrink: 0 }}>
+                    {c.user?.name?.[0]}
+                  </div>
+                  <div style={{ flex: 1, background: 'var(--surface-2)', borderRadius: '8px', padding: '8px 10px' }}>
+                    <div style={{ fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '3px' }}>{c.user?.name}</div>
+                    <div style={{ fontSize: '13px', lineHeight: 1.4 }}>{c.content}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <input className="input" placeholder="Ajouter un commentaire..." value={comment}
+              onChange={e => setComment(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && submitComment()} />
+            <button onClick={submitComment} disabled={!comment.trim() || saving} className="btn btn-primary" style={{ flexShrink: 0 }}>
+              Envoyer
+            </button>
+          </div>
         </div>
       </div>
     </>
