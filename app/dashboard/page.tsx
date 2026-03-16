@@ -1,10 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Task, User } from '@/types'
-import { CATEGORIES, STATUSES } from '@/lib/constants'
-import { buildTaskTree, calcProgress } from '@/lib/taskTree'
-import { CheckSquare, Clock, AlertCircle, TrendingUp, ChevronRight } from 'lucide-react'
+import { CATEGORIES, STATUSES, URGENCIES } from '@/lib/constants'
+import { countLeaves } from '@/lib/taskTree'
+import { CheckSquare, Clock, AlertCircle, TrendingUp, ChevronRight, ChevronDown, Folder, FileText } from 'lucide-react'
 import Link from 'next/link'
 
 export default function DashboardPage() {
@@ -12,6 +12,7 @@ export default function DashboardPage() {
   const [users, setUsers] = useState<User[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const stored = localStorage.getItem('ws_user')
@@ -36,6 +37,20 @@ export default function DashboardPage() {
       setLoading(false)
     })
   }, [])
+
+  const toggleExpand = useCallback((id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(Array.from(prev))
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }, [])
+
+  // Build tree
+  const allMap: Record<string, any> = {}
+  tasks.forEach(t => { allMap[t.id] = { ...t, children: [] } })
+  tasks.forEach(t => { if (t.parent_id && allMap[t.parent_id]) allMap[t.parent_id].children.push(allMap[t.id]) })
+  const treeRoots = tasks.filter(t => !t.parent_id).map(t => allMap[t.id]).filter(Boolean)
 
   if (!user || loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
@@ -172,6 +187,107 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      {/* Toutes les tâches — arbre expandable */}
+      <div className="surface" style={{ overflow: 'hidden', marginTop: '16px' }}>
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="section-header" style={{ marginBottom: 0 }}>Toutes les tâches</div>
+          <span style={{ fontSize: '12px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>{treeRoots.length} racines</span>
+        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)' }}>Tâche</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)' }}>Statut</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)', minWidth: '120px' }}>Progression</th>
+              <th style={{ padding: '8px 12px', textAlign: 'left', fontSize: '11px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', background: 'var(--surface-2)' }}>Assigné</th>
+            </tr>
+          </thead>
+          <tbody>
+            {treeRoots.length === 0 ? (
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>Aucune tâche</td></tr>
+            ) : treeRoots.map(task => (
+              <DashTaskRow key={task.id} task={task} depth={0} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
+  )
+}
+
+function DashTaskRow({ task, depth, expandedIds, toggleExpand, allMap }: {
+  task: any
+  depth: number
+  expandedIds: Set<string>
+  toggleExpand: (id: string) => void
+  allMap: Record<string, any>
+}) {
+
+  const hasChildren = task.children && task.children.length > 0
+  const isExpanded = expandedIds.has(task.id)
+  const cat = CATEGORIES.find((c: any) => c.value === task.category)
+  const sta = STATUSES.find((s: any) => s.value === task.status)
+  const leaves = countLeaves(task)
+  const progress = hasChildren
+    ? Math.round((leaves.done / leaves.total) * 100)
+    : (task.status === 'Terminé' ? 100 : task.progress || 0)
+  const assignees: any[] = task.assignees || []
+
+  return (
+    <>
+      <tr style={{ borderBottom: '1px solid var(--border)', opacity: task.status === 'Terminé' ? 0.55 : 1 }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8F9FB'}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = ''}>
+        <td style={{ paddingLeft: `${12 + depth * 20}px`, padding: `10px 12px 10px ${12 + depth * 20}px` }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ width: '18px', flexShrink: 0 }}>
+              {hasChildren && (
+                <button onClick={() => toggleExpand(task.id)}
+                  style={{ width: '18px', height: '18px', border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '3px' }}>
+                  {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+                </button>
+              )}
+            </div>
+            {hasChildren
+              ? <Folder size={13} color={cat?.color} style={{ flexShrink: 0 }} />
+              : <FileText size={13} color="var(--text-dim)" style={{ flexShrink: 0 }} />
+            }
+            <div>
+              <div style={{ fontWeight: hasChildren ? '600' : '400', fontSize: '13px' }}>{task.title}</div>
+              {hasChildren && (
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {leaves.done}/{leaves.total} sous-tâches
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td style={{ padding: '10px 12px' }}>
+          <span className="badge" style={{ background: sta?.bg, color: sta?.color, borderColor: sta?.border, fontSize: '11px' }}>{task.status}</span>
+        </td>
+        <td style={{ padding: '10px 12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ flex: 1, height: '5px', background: 'var(--border)', borderRadius: '100px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', borderRadius: '100px', width: `${progress}%`, background: progress === 100 ? '#059669' : cat?.color }} />
+            </div>
+            <span style={{ fontSize: '11px', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', minWidth: '28px' }}>{progress}%</span>
+          </div>
+        </td>
+        <td style={{ padding: '10px 12px' }}>
+          {assignees.length > 0 ? (
+            <div style={{ display: 'flex', gap: '3px' }}>
+              {assignees.map((a: any) => (
+                <div key={a.id} title={a.name} style={{ width: '22px', height: '22px', borderRadius: '50%', background: `${a.avatar_color}15`, border: `1.5px solid ${a.avatar_color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', color: a.avatar_color }}>
+                  {a.name[0]}
+                </div>
+              ))}
+            </div>
+          ) : <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>—</span>}
+        </td>
+      </tr>
+      {hasChildren && isExpanded && task.children.map((child: any) => (
+        <DashTaskRow key={child.id} task={child} depth={depth + 1} expandedIds={expandedIds} toggleExpand={toggleExpand} allMap={allMap} />
+      ))}
+    </>
   )
 }
