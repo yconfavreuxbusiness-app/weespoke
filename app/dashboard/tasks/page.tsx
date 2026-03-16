@@ -141,7 +141,7 @@ function TaskModal({
             <div className="field">
               <label className="label">Urgence</label>
               <select className="input" value={form.urgency}
-                onChange={e => setForm(p => ({ ...p, urgency: e.target.value }))}>
+                onChange={e => setForm(p => ({ ...p, urgency: e.target.value as any }))}>
                 {URGENCIES.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
               </select>
             </div>
@@ -255,7 +255,7 @@ function EditModal({
           <div className="field">
             <label className="label">Urgence</label>
             <select className="input" value={form.urgency}
-              onChange={e => setForm(p => ({ ...p, urgency: e.target.value }))}>
+              onChange={e => setForm(p => ({ ...p, urgency: e.target.value as any }))}>
               {URGENCIES.map(u => <option key={u.value} value={u.value}>{u.value}</option>)}
             </select>
           </div>
