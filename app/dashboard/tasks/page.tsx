@@ -24,9 +24,9 @@ function TaskModal({
     title: '', description: '',
     category: parentTask?.category || 'Dev',
     urgency: 'Normal',
-    assigned_to: '',
+    assigned_users: [] as string[],
     due_date: '',
-    status: 'A faire',
+    status: 'À faire',
     parent_id: parentTask?.id || '',
   })
 
@@ -143,20 +143,42 @@ function TaskModal({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="field">
-              <label className="label">Assigne a</label>
-              <select className="input" value={form.assigned_to}
-                onChange={e => setForm(p => ({ ...p, assigned_to: e.target.value }))}>
-                <option value="">Non assigne</option>
-                {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
+          <div className="field">
+            <label className="label">Assigne a (plusieurs possible)</label>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {users.map(u => {
+                const checked = form.assigned_users.includes(u.id)
+                return (
+                  <button key={u.id} type="button"
+                    onClick={() => setForm(p => ({
+                      ...p,
+                      assigned_users: checked
+                        ? p.assigned_users.filter((id: string) => id !== u.id)
+                        : [...p.assigned_users, u.id]
+                    }))}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '6px',
+                      padding: '5px 10px', borderRadius: '100px', cursor: 'pointer',
+                      border: `2px solid ${checked ? u.avatar_color : 'var(--border-dark)'}`,
+                      background: checked ? u.avatar_color + '15' : 'var(--surface)',
+                      fontFamily: 'var(--font)', fontSize: '12px', fontWeight: checked ? '600' : '400',
+                      color: checked ? u.avatar_color : 'var(--text-2)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <div style={{ width: '18px', height: '18px', borderRadius: '50%', background: u.avatar_color + '20', border: '1.5px solid ' + u.avatar_color + '50', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '9px', fontWeight: '700', color: u.avatar_color }}>
+                      {u.name[0]}
+                    </div>
+                    {u.name}
+                  </button>
+                )
+              })}
             </div>
-            <div className="field">
-              <label className="label">Echeance</label>
-              <input type="date" className="input" value={form.due_date}
-                onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
-            </div>
+          </div>
+          <div className="field">
+            <label className="label">Echeance</label>
+            <input type="date" className="input" value={form.due_date}
+              onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
           </div>
 
           {currentUser.role !== 'admin' && (
@@ -201,17 +223,17 @@ function TaskRow({
   const leaves = countLeaves(task)
   const progress = hasChildren
     ? Math.round((leaves.done / leaves.total) * 100)
-    : (task.status === 'Termine' ? 100 : task.progress || 0)
+    : (task.status === 'Terminé' ? 100 : task.progress || 0)
 
   const cat = CATEGORIES.find(c => c.value === task.category)
   const sta = STATUSES.find(s => s.value === task.status)
   const urg = URGENCIES.find(u => u.value === task.urgency)
-  const assignee = (task as any).assignee
+  const assignees: any[] = (task as any).assignees || []
   const canAddChild = (task.level || 0) < 2
 
   return (
     <>
-      <tr style={{ opacity: task.status === 'Termine' ? 0.55 : 1 }}>
+      <tr style={{ opacity: task.status === 'Terminé' ? 0.55 : 1 }}>
         <td style={{ paddingLeft: `${12 + depth * 20}px` }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '18px', flexShrink: 0 }}>
@@ -271,10 +293,11 @@ function TaskRow({
         </td>
 
         <td>
-          {assignee ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-              <div style={{ width: '22px', height: '22px', borderRadius: '50%', background: `${assignee.avatar_color}15`, border: `1.5px solid ${assignee.avatar_color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', color: assignee.avatar_color, flexShrink: 0 }}>{assignee.name[0]}</div>
-              <span style={{ fontSize: '12px' }}>{assignee.name}</span>
+          {assignees.length > 0 ? (
+            <div style={{ display: 'flex', gap: '3px' }}>
+              {assignees.map((a: any) => (
+                <div key={a.id} title={a.name} style={{ width: '22px', height: '22px', borderRadius: '50%', background: `${a.avatar_color}15`, border: `1.5px solid ${a.avatar_color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', fontWeight: '600', color: a.avatar_color, flexShrink: 0 }}>{a.name[0]}</div>
+              ))}
             </div>
           ) : <span style={{ fontSize: '12px', color: 'var(--text-dim)' }}>-</span>}
         </td>
@@ -325,11 +348,20 @@ export default function TasksPage() {
 
   const loadData = async () => {
     const [{ data: t }, { data: u }] = await Promise.all([
-      supabase.from('tasks').select('*, assignee:assigned_to(*), creator:created_by(*)').order('created_at', { ascending: false }),
+      supabase.from('tasks').select('*, creator:created_by(*)').order('created_at', { ascending: false }),
       supabase.from('users').select('*')
     ])
-    if (t) setTasks(t as any)
-    if (u) setUsers(u)
+    if (t && u) {
+      // Enrich tasks with assignees from assigned_users array
+      const userMap: Record<string, any> = {}
+      u.forEach((usr: any) => { userMap[usr.id] = usr })
+      const enriched = (t as any[]).map(task => ({
+        ...task,
+        assignees: (task.assigned_users || []).map((id: string) => userMap[id]).filter(Boolean)
+      }))
+      setTasks(enriched as any)
+      setUsers(u)
+    }
     setLoading(false)
   }
 
@@ -350,8 +382,8 @@ export default function TasksPage() {
       description: form.description || null,
       category: form.category,
       urgency: form.urgency,
-      status: 'A faire',
-      assigned_to: form.assigned_to || null,
+      status: 'À faire',
+      assigned_users: form.assigned_users.length > 0 ? form.assigned_users : [],
       due_date: form.due_date || null,
       created_by: user.id,
       validated: user.role === 'admin',
@@ -387,7 +419,7 @@ export default function TasksPage() {
     if (t.parent_id) return false
     if (filterCat !== 'all' && t.category !== filterCat) return false
     if (filterStatus !== 'all' && t.status !== filterStatus) return false
-    if (filterUser !== 'all' && t.assigned_to !== filterUser) return false
+    if (filterUser !== 'all' && !(t.assigned_users && t.assigned_users.includes(filterUser))) return false
     return true
   })
 
@@ -403,7 +435,7 @@ export default function TasksPage() {
       <div className="page-header">
         <div>
           <div className="page-title">Taches</div>
-          <div className="page-sub">{treeRoots.length} taches racines · {tasks.filter(t => t.status === 'Termine').length} terminees</div>
+          <div className="page-sub">{treeRoots.length} taches racines · {tasks.filter(t => t.status === 'Terminé').length} terminées</div>
         </div>
         <button onClick={() => { setParentForModal(null); setShowModal(true) }} className="btn btn-primary">
           <Plus size={14} /> Nouvelle tache

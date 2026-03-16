@@ -19,6 +19,8 @@ export interface Task {
   status: Status
   urgency: Urgency
   assigned_to?: string
+  assigned_users?: string[]
+  assignees?: User[]
   created_by: string
   validated: boolean
   progress: number
